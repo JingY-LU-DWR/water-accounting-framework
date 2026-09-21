@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>State Water Accounting — Decision Space Explorer</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <main class="page-shell">
+    <header class="page-header">
+      <p class="eyebrow">State Water Accounting Knowledge Hub</p>
+      <h1>Decision Space Explorer</h1>
+      <p class="intro">
+        A true interactive 3D capability space for comparing strategic options across spatial
+        flexibility, temporal flexibility, and hydrological integration—without collapsing them into
+        a single score.
+      </p>
+    </header>
+
+    <section class="figure-card" aria-labelledby="figure-title">
+      <div class="figure-layout">
+        <section class="visual-panel" aria-labelledby="figure-title">
+          <div class="panel-heading">
+            <h2 id="figure-title">Three-dimensional decision space</h2>
+            <p>
+              Drag to rotate. Use the mouse wheel or pinch to zoom. Right-drag or two-finger drag to pan.
+              Select an option in the scene or in the option list to inspect its exact T / S / H profile.
+            </p>
+          </div>
+
+          <div class="toolbar" aria-label="Scene controls">
+            <div class="toolbar-group">
+              <p class="toolbar-label">Camera</p>
+              <div class="control-row">
+                <button type="button" class="tool-button is-active" data-view="reset">Reset View</button>
+                <button type="button" class="tool-button" data-view="top">Top</button>
+                <button type="button" class="tool-button" data-view="front">Front</button>
+                <button type="button" class="tool-button" data-view="side">Side</button>
+              </div>
+            </div>
+
+            <div class="toolbar-group">
+              <p class="toolbar-label">Reference planes</p>
+              <div class="control-row">
+                <button type="button" class="tool-button is-active" data-plane="xy">XY</button>
+                <button type="button" class="tool-button" data-plane="xz">XZ</button>
+                <button type="button" class="tool-button" data-plane="yz">YZ</button>
+                <button type="button" class="tool-button" data-plane="all">All</button>
+                <button type="button" class="tool-button" data-planes-toggle="show">Show Planes</button>
+                <button type="button" class="tool-button" data-planes-toggle="hide">Hide Planes</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="scene-card">
+            <div id="scene-container" class="scene-container" aria-label="Interactive 3D decision space"></div>
+            <div class="scene-footer">
+              <p id="plane-status" class="scene-status">Plane focus: XY — Spatial × Temporal</p>
+              <p class="scene-status">Coordinate mapping: x = Spatial, y = Temporal, z = Hydrological</p>
+            </div>
+          </div>
+
+          <div class="axis-notes" aria-label="Conceptual axis definitions">
+            <article>
+              <h3>Spatial Flexibility (X)</h3>
+              <p class="axis-question">Where can we account?</p>
+              <p class="axis-range">local → service area → water district → basin → HUC8 → region → statewide</p>
+            </article>
+            <article>
+              <h3>Temporal Flexibility (Y)</h3>
+              <p class="axis-question">When / at what time step can we account?</p>
+              <p class="axis-range">lower temporal flexibility → weekly → monthly → quarterly → annual</p>
+            </article>
+            <article>
+              <h3>Hydrological Integration (Z)</h3>
+              <p class="axis-question">What can we account for?</p>
+              <p class="axis-range">single component → land + surface water → full hydrologic cycle</p>
+            </article>
+          </div>
+        </section>
+
+        <aside class="profile-panel" aria-labelledby="profile-title">
+          <div class="panel-heading">
+            <h2 id="profile-title">Selected capability profile</h2>
+            <p>
+              The options occupy different positions in the same three-dimensional space. This is a
+              capability framework, not a ranking or winner-take-all scorecard.
+            </p>
+          </div>
+
+          <div id="option-controls" class="option-controls" role="list" aria-label="Strategic options"></div>
+
+          <section class="selected-option" aria-live="polite">
+            <p class="selected-kicker">Selected option</p>
+            <h3 id="selected-name"></h3>
+            <p id="selected-description" class="selected-description"></p>
+            <dl id="selected-values" class="selected-values"></dl>
+            <p id="selected-note" class="selected-note" hidden></p>
+          </section>
+
+          <section class="profile-chart" aria-labelledby="profile-bars-title">
+            <h3 id="profile-bars-title">Three-dimensional capability profile</h3>
+            <div id="profile-bars" class="profile-bars"></div>
+          </section>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
