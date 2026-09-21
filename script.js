@@ -11,7 +11,11 @@ const options = {
     spatial: 5,
     hydrological: 4,
     description: "Continuity / current capability",
-    color: "#6f8fa8"
+    color: "#6f8fa8",
+    costLabel: ["$2M"],
+    investment: {
+      lines: ["Estimated Investment:", "$2M"]
+    }
   },
   B: {
     name: "Modernize",
@@ -19,17 +23,26 @@ const options = {
     spatial: 7,
     hydrological: 6,
     description: "Improve the current system",
-    color: "#4a7ea5"
+    color: "#4a7ea5",
+    costLabel: ["$3.6M"],
+    investment: {
+      lines: ["Estimated Investment:", "$3.6M"]
+    }
   },
   X: {
-    name: "Go Faster",
+    name: "Faster Delivery",
     temporal: 10,
     spatial: 6,
     hydrological: 2,
     hydrologicalDisplay: "2*",
     note: "* Working value; confirm hydrological score.",
     description: "Prioritize timeliness",
-    color: "#567f89"
+    color: "#567f89",
+    costLabel: ["$2.5M/yr"],
+    investment: {
+      lines: ["Estimated Investment:", "$2.5M/year"],
+      supplemental: "Alternative funding model: $1.0M/year incremental to A, B, or C. This incremental funding model is not a separate fifth option and is not automatically added to the standalone $2.5M/year estimate."
+    }
   },
   C: {
     name: "Transform",
@@ -37,7 +50,11 @@ const options = {
     spatial: 7,
     hydrological: 10,
     description: "Build future capability",
-    color: "#1d5d85"
+    color: "#1d5d85",
+    costLabel: ["$5.9M/yr × 5 yr", "then $3.6M/yr"],
+    investment: {
+      lines: ["Estimated Investment:", "Years 1–5: $5.9M/year", "Year 6+: $3.6M/year"]
+    }
   }
 };
 
@@ -112,6 +129,7 @@ const cameraViews = {
 const state = {
   selectedKey: "A",
   hoveredKey: null,
+  visibleOptions: new Set(),
   activePlane: "xy",
   planesVisible: true,
   activeView: "reset",
@@ -126,6 +144,7 @@ const refs = {
   selectedDescription: document.getElementById("selected-description"),
   selectedValues: document.getElementById("selected-values"),
   selectedNote: document.getElementById("selected-note"),
+  selectedInvestment: document.getElementById("selected-investment"),
   profileBars: document.getElementById("profile-bars"),
   planeStatus: document.getElementById("plane-status"),
   planeButtons: Array.from(document.querySelectorAll("[data-plane]")),
@@ -159,7 +178,7 @@ const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const interactiveMeshes = [];
 const optionMeshes = new Map();
-const optionButtons = new Map();
+const optionControls = new Map();
 const planeGroups = new Map();
 const guideLines = [];
 const tempVector = new THREE.Vector3();
@@ -436,7 +455,17 @@ function createOptionMarkers() {
       depthTest: false
     });
 
-    group.add(halo, sphere, codeLabel, nameLabel);
+    const costLabel = createTextSprite(option.costLabel, {
+      position: new THREE.Vector3(0.95, -0.35, 0.1),
+      background: "rgba(255,255,255,0.94)",
+      border: "rgba(108,139,164,0.18)",
+      color: "#35546d",
+      scale: option.costLabel.length > 1 ? 0.74 : 0.68,
+      anchorY: 0.5,
+      depthTest: false
+    });
+
+    group.add(halo, sphere, codeLabel, nameLabel, costLabel);
     sceneRoot.add(group);
 
     interactiveMeshes.push(sphere);
@@ -445,7 +474,8 @@ function createOptionMarkers() {
       sphere,
       halo,
       codeLabel,
-      nameLabel
+      nameLabel,
+      costLabel
     });
   });
 }
@@ -465,11 +495,24 @@ function createSelectionGuides() {
 
 function buildOptionControls() {
   Object.entries(options).forEach(([key, option]) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "option-button";
-    button.dataset.option = key;
-    button.innerHTML = `
+    const container = document.createElement("div");
+    container.className = "option-button";
+    container.dataset.option = key;
+
+    const toggleButton = document.createElement("button");
+    toggleButton.type = "button";
+    toggleButton.className = "option-toggle";
+    toggleButton.dataset.optionToggle = key;
+    toggleButton.setAttribute("aria-label", `Show or hide ${option.name}`);
+    toggleButton.setAttribute("aria-pressed", "false");
+    toggleButton.innerHTML = '<span class="option-check" aria-hidden="true"></span>';
+
+    const selectButton = document.createElement("button");
+    selectButton.type = "button";
+    selectButton.className = "option-select";
+    selectButton.dataset.optionSelect = key;
+    selectButton.setAttribute("aria-pressed", "false");
+    selectButton.innerHTML = `
       <span class="option-code">${key}</span>
       <span class="option-label">
         <strong>${option.name}</strong>
@@ -477,9 +520,17 @@ function buildOptionControls() {
       </span>
       <span class="option-meta">T ${option.temporal} · S ${option.spatial} · H ${getDisplayValue(key, "hydrological")}</span>
     `;
-    button.addEventListener("click", () => selectOption(key));
-    refs.optionControls.appendChild(button);
-    optionButtons.set(key, button);
+
+    toggleButton.addEventListener("click", () => toggleOptionVisibility(key));
+    selectButton.addEventListener("click", () => selectOption(key, true));
+
+    container.append(toggleButton, selectButton);
+    refs.optionControls.appendChild(container);
+    optionControls.set(key, {
+      container,
+      toggleButton,
+      selectButton
+    });
   });
 }
 
@@ -606,7 +657,7 @@ function handleSceneClick(event) {
     return;
   }
 
-  selectOption(hit.userData.optionKey);
+  selectOption(hit.userData.optionKey, true);
 }
 
 function getIntersectedOption(event) {
@@ -615,34 +666,57 @@ function getIntersectedOption(event) {
   pointer.y = -((event.clientY - bounds.top) / bounds.height) * 2 + 1;
 
   raycaster.setFromCamera(pointer, camera);
-  const hits = raycaster.intersectObjects(interactiveMeshes, false);
+  const visibleMeshes = interactiveMeshes.filter((mesh) => optionMeshes.get(mesh.userData.optionKey)?.group.visible);
+  const hits = raycaster.intersectObjects(visibleMeshes, false);
   return hits[0]?.object ?? null;
 }
 
 function updateOptionVisualState() {
   optionMeshes.forEach((entry, key) => {
+    const isVisible = state.visibleOptions.has(key);
     const isSelected = key === state.selectedKey;
     const isHovered = key === state.hoveredKey;
     const scale = isSelected ? 1.36 : isHovered ? 1.18 : 1;
     const haloOpacity = isSelected ? 0.28 : isHovered ? 0.16 : 0;
     const emissiveIntensity = isSelected ? 0.34 : isHovered ? 0.18 : 0.08;
 
+    entry.group.visible = isVisible;
     entry.group.scale.setScalar(scale);
     entry.halo.material.opacity = haloOpacity;
     entry.sphere.material.emissiveIntensity = emissiveIntensity;
     entry.nameLabel.material.opacity = isSelected || isHovered ? 1 : 0.88;
     entry.codeLabel.material.opacity = isSelected ? 1 : 0.94;
+    entry.costLabel.material.opacity = 0.96;
   });
 
-  optionButtons.forEach((button, key) => {
+  optionControls.forEach((control, key) => {
+    const isVisible = state.visibleOptions.has(key);
     const isActive = key === state.selectedKey;
-    button.classList.toggle("is-active", isActive);
-    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    control.container.classList.toggle("is-visible", isVisible);
+    control.container.classList.toggle("is-active", isActive);
+    control.toggleButton.classList.toggle("is-active", isVisible);
+    control.toggleButton.setAttribute("aria-pressed", isVisible ? "true" : "false");
+    control.selectButton.classList.toggle("is-active", isActive);
+    control.selectButton.setAttribute("aria-pressed", isActive ? "true" : "false");
   });
 }
 
-function selectOption(optionKey) {
+function toggleOptionVisibility(optionKey) {
+  if (state.visibleOptions.has(optionKey)) {
+    state.visibleOptions.delete(optionKey);
+  } else {
+    state.visibleOptions.add(optionKey);
+  }
+
+  updateProjectionGuides();
+  updateOptionVisualState();
+}
+
+function selectOption(optionKey, ensureVisible = false) {
   state.selectedKey = optionKey;
+  if (ensureVisible) {
+    state.visibleOptions.add(optionKey);
+  }
   updateProjectionGuides();
   updateSelectedPanel();
   updateOptionVisualState();
@@ -651,6 +725,7 @@ function selectOption(optionKey) {
 function updateProjectionGuides() {
   const option = options[state.selectedKey];
   const point = new THREE.Vector3(option.spatial, option.temporal, option.hydrological);
+  const showGuides = state.visibleOptions.has(state.selectedKey);
 
   const targets = [
     new THREE.Vector3(option.spatial, option.temporal, 0),
@@ -668,6 +743,7 @@ function updateProjectionGuides() {
     positions[5] = targets[index].z;
     line.geometry.attributes.position.needsUpdate = true;
     line.computeLineDistances();
+    line.visible = showGuides;
   });
 }
 
@@ -697,6 +773,18 @@ function updateSelectedPanel() {
   } else {
     refs.selectedNote.hidden = true;
     refs.selectedNote.textContent = "";
+  }
+
+  if (refs.selectedInvestment) {
+    refs.selectedInvestment.hidden = false;
+    const investment = option.investment;
+    refs.selectedInvestment.innerHTML = `
+      <h4>Estimated Investment</h4>
+      ${investment.lines.map((line, index) => index === 0
+        ? `<p class="investment-line investment-lead">${line}</p>`
+        : `<p class="investment-line">${line}</p>`).join("")}
+      ${investment.supplemental ? `<p class="investment-note">${investment.supplemental}</p>` : ""}
+    `;
   }
 
   refs.profileBars.replaceChildren();
