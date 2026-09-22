@@ -18,7 +18,7 @@ const options = {
     }
   },
   B: {
-    name: "Modernize",
+    name: "Enhance",
     temporal: 4,
     spatial: 7,
     hydrological: 6,
@@ -45,7 +45,7 @@ const options = {
     }
   },
   C: {
-    name: "Transform",
+    name: "Modernize",
     temporal: 5,
     spatial: 7,
     hydrological: 10,
@@ -257,7 +257,7 @@ function createAxes() {
       end: new THREE.Vector3(SPACE_MAX + 0.7, 0, 0),
       labelPosition: new THREE.Vector3(SPACE_MAX + 1.5, 0, 0),
       directionEnd: new THREE.Vector3(SPACE_MAX + 1.1, -0.7, 0),
-      directionLabel: "statewide"
+      directionLabel: ""
     },
     {
       name: "Temporal Flexibility",
@@ -266,7 +266,7 @@ function createAxes() {
       end: new THREE.Vector3(0, SPACE_MAX + 0.7, 0),
       labelPosition: new THREE.Vector3(0, SPACE_MAX + 1.6, 0),
       directionEnd: new THREE.Vector3(-1.25, SPACE_MAX + 1.1, 0),
-      directionLabel: "annual"
+      directionLabel: ""
     },
     {
       name: "Hydrological Integration",
@@ -275,7 +275,7 @@ function createAxes() {
       end: new THREE.Vector3(0, 0, SPACE_MAX + 0.7),
       labelPosition: new THREE.Vector3(0, 0, SPACE_MAX + 1.7),
       directionEnd: new THREE.Vector3(0.9, 0, SPACE_MAX + 1.1),
-      directionLabel: "full hydrologic cycle"
+      directionLabel: ""
     }
   ].forEach((axis) => {
     const points = [axis.start, axis.end];
